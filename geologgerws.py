@@ -27,6 +27,15 @@
 # Jonah Duckles - jduckles@ou.edu
 # 
 
+'''
+GET /lightlogs - list of available lightlogs
+GET /lightlogs/tagname - a single tagname's most recent lightlog
+GET /twilights/ - a list of available twilights
+GET /twilights/tagname - a single tagnamees' most recent twilight data
+GET /coord/ - a list of available geospatial coordinates and their timestamp
+GET /coord/tagname - a single tagnames' most recent coordinate data
+'''
+
 
 import cherrypy
 import pymongo
@@ -38,15 +47,20 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 def distinct(seq):
+    ''' returns distinct elements of a sequence '''
     seen=set()
     seen_add = seen.add
     return [ x for x in seq if x not in seen and not seen_add(x) ]
+
+
 class Root(object):
     
     def __init__(self):
+        ''' Intialize database connections '''
         self.db = pymongo.Connection()
         self.auth = psycopg2.connect(dbname="auth", user='mstacy', host="fire.rccc.ou.edu")
     def uidtoname(self,user_id):
+        ''' Convert uid to username ''' 
         cur = self.auth.cursor()
         if user_id:
             cur.execute('select username from auth_user where id = %s' % user_id)
@@ -54,6 +68,7 @@ class Root(object):
         else:
             return 'guest'
     def geologgercollection(self,collection,username,tagname=None):
+        '''Get data from MongDB based on client's username'''
         try:
             col = self.db['geologger'][collection]
         except:
@@ -73,18 +88,11 @@ class Root(object):
             else:
                 return "{error: Nothing found with that tagname}"
         else:
-            tags = [ item for item in col.distinct(spec={useridkey: username}, fields={tagnamekey:True, '_id':False}) ]
+            tags = [ item for item in col.find(spec={useridkey: username}, fields={tagnamekey:True, '_id':False}) ]
             return json.dumps(tags, default=handler, indent=2)
-
-    @cherrypy.expose
-    def test_auth(self):
-        if cherrypy.request.headers.has_key('REMOTE_USER'):
-            return "Your username is %s" % cherrypy.request.headers['REMOTE_USER']
-        else:
-            return "There doesn't seem to be an auth system running on your server" 
     @cherrypy.expose    
     def index(self):
-        pass 
+        return '''<html><ul><li><a href="lightlogs">lightlogs</a></li><li><a href="twilights">twilights</a></li><li><a href="coord">coord</a></li></ul></html>''' 
     @cherrypy.expose    
     def lightlogs(self,tagname=None):
         user_id = cherrypy.request.login
