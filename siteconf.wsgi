@@ -1,9 +1,9 @@
 import os
-activate_this = os.path.join(os.getcwd(), 'virtpy/bin/activate_this.py')
+activate_this = '/var/www/apps/geologgerws/' + 'virtpy/bin/activate_this.py'
 execfile(activate_this, dict(__file__=activate_this))
 
 import site
-site.addsitedir(os.getcwd())
+site.addsitedir('/var/www/apps/geologgerws/')
 
 import cherrypy
 from siteconf import Root as Root
