@@ -64,7 +64,7 @@ class Root(object):
         cur = self.auth.cursor()
         if user_id:
             cur.execute('select username from auth_user where id = %s' % user_id)
-            return cur.findone()
+            return cur.fetchone()[0]
         else:
             return 'guest'
     def geologgercollection(self,collection,username,tagname=None):
@@ -76,11 +76,13 @@ class Root(object):
         if collection == "coord":
             tagnamekey = 'properties.tagname'
             useridkey = 'properties.user_id'
-            query = col.find(spec = {useridkey: username,  tagnamekey: tagname}, sort = [['properties.timestamp', -1]], limit =1, fields={  '_id':False} )
+            query = col.find(spec = {useridkey: username,  tagnamekey: tagname}, 
+                sort = [['properties.timestamp', -1]], limit =1, fields={'_id':False} )
         else:
             tagnamekey = 'tagname'
             useridkey = 'user_id'
-            query = col.find(spec={useridkey: username,  tagnamekey:tagname}, sort = [['timestamp', -1]], limit = 1, fields={'_id': False}) 
+            query = col.find(spec={useridkey: username,  tagnamekey:tagname}, 
+                sort = [['timestamp', -1]], limit = 1, fields={'_id': False}) 
         if tagname:
             record = [ item for item in query]
             if len(record) > 0:
@@ -88,16 +90,21 @@ class Root(object):
             else:
                 return "{error: Nothing found with that tagname}"
         else:
-            tags = [ item for item in col.find(spec={useridkey: username}, fields={tagnamekey:True, '_id':False}) ]
+            tags = [ item for item in col.find(spec={useridkey: username}, 
+                        fields={tagnamekey:True, '_id':False}) ]
             return json.dumps(tags, default=handler, indent=2)
     @cherrypy.expose    
     def index(self):
-        return '''<html><ul><li><a href="lightlogs">lightlogs</a></li><li><a href="twilights">twilights</a></li><li><a href="coord">coord</a></li></ul></html>''' 
+        return '''<html><ul><li><a href="lightlogs">lightlogs</a></li><li>
+                <a href="twilights">twilights</a></li><li><a href="coord">coord</a></li></ul></html>
+               ''' 
     @cherrypy.expose    
     def lightlogs(self,tagname=None):
         user_id = cherrypy.request.login
         if user_id != 'guest':
             username = self.uidtoname(user_id)
+        else:
+            username = 'guest'
         cherrypy.response.headers['Content-Type'] = "application/json"
         return self.geologgercollection('lightlogs',username,tagname)
     @cherrypy.expose
@@ -105,6 +112,8 @@ class Root(object):
         user_id = cherrypy.request.login
         if user_id != 'guest':
             username = self.uidtoname(user_id)
+        else:
+            username = 'guest'
         cherrypy.response.headers['Content-Type'] = "application/json"
         return self.geologgercollection('twilights',username,tagname) 
     @cherrypy.expose
@@ -112,6 +121,8 @@ class Root(object):
         user_id = cherrypy.request.login
         if user_id != 'guest':
             username = self.uidtoname(user_id)
+        else:
+            username = 'guest'
         cherrypy.response.headers['Content-Type'] = "application/json"
         return self.geologgercollection('coord',username, tagname)
 
