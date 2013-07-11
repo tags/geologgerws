@@ -90,8 +90,9 @@ class Root(object):
             else:
                 return "{error: Nothing found with that tagname}"
         else:
-            tags = [ item for item in col.find(spec={useridkey: username}, 
-                        fields={tagnamekey:True, '_id':False}) ]
+            query = col.distinct(tagnamekey)
+            tags = [ item for item in query  ]
+            tags.sort()
             return json.dumps(tags, default=handler, indent=2)
     @cherrypy.expose    
     def index(self):
