@@ -28,9 +28,9 @@
 # 
 
 '''
-GET /lightlogs - list of available lightlogs
+GET /lightlogs - list of available lightlog tagnames
 GET /lightlogs/tagname - a single tagname's most recent lightlog
-GET /twilights/ - a list of available twilights
+GET /twilights/ - a list of available twilight tagnames
 GET /twilights/tagname - a single tagnamees' most recent twilight data
 GET /coord/ - a list of available geospatial coordinates and their timestamp
 GET /coord/tagname - a single tagnames' most recent coordinate data
@@ -67,7 +67,7 @@ class Root(object):
             return cur.fetchone()[0]
         else:
             return 'guest'
-    def geologgercollection(self,collection,username,tagname=None):
+    def geologgercollection(self,collection,username,querytype,queryid=None):
         '''Get data from MongDB based on client's username'''
         try:
             col = self.db['geologger'][collection]
@@ -76,56 +76,87 @@ class Root(object):
         if collection == "coord":
             tagnamekey = 'properties.tagname'
             useridkey = 'properties.user_id'
-            query = col.find(spec = {useridkey: username,  tagnamekey: tagname}, 
-                sort = [['properties.timestamp', -1]], limit =1, fields={'_id':False} )
+            timestampkey = 'properties.timestamp'
+            if querytype == "id":
+                query = col.find(spec = {useridkey: username, "_id": queryid}, 
+                sort= [[timestampkey, -1]], limit=1, fields={'_id':False})
+            elif querytype == "tagname":
+                query = col.find(spec = {useridkey: username,  tagnamekey: queryid}, 
+                sort = [[timestampkey, -1]], limit =1, fields={'_id':False} )
         else:
             tagnamekey = 'tagname'
             useridkey = 'user_id'
-            query = col.find(spec={useridkey: username,  tagnamekey:tagname}, 
+            timestampkey = 'timestamp'
+            if querytype == "id":
+                query = col.find(spec = {useridkey: username, "_id": queryid}, 
+                sort= [[timestampkey, -1]], limit=1, fields={'_id':False})
+            elif querytype == "tagname":
+                query = col.find(spec={useridkey: username, tagnamekey: queryid}, 
                 sort = [['timestamp', -1]], limit = 1, fields={'_id': False}) 
-        if tagname:
+        if queryid:
             record = [ item for item in query]
             if len(record) > 0:
                 return json.dumps(record, default=handler, indent=2)
             else:
                 return "{error: Nothing found with that tagname}"
         else:
-            query = col.distinct(tagnamekey)
-            tags = [ item for item in query  ]
-            tags.sort()
-            return json.dumps(tags, default=handler, indent=2)
+            tags = col.distinct(tagnamekey)
+            tagsout = list()
+            for tag in tags:
+                query = col.find(spec={useridkey: username, tagnamekey: tag }, sort = [['timestamp', -1]], limit=1, fields={'_id': False, tagnamekey: True, timestampkey:True})
+                if query.count() > 0:
+                    tagsout.append([item for item in query ][0])
+            return json.dumps(tagsout, default=handler, indent=2)
     @cherrypy.expose    
     def index(self):
         return '''<html><ul><li><a href="lightlogs">lightlogs</a></li><li>
                 <a href="twilights">twilights</a></li><li><a href="coord">coord</a></li></ul></html>
                ''' 
     @cherrypy.expose    
-    def lightlogs(self,tagname=None):
+    def lightlogs(self,querytype,queryid=None,callback=None, **kwargs):
         user_id = cherrypy.request.login
         if user_id != 'guest':
             username = self.uidtoname(user_id)
         else:
             username = 'guest'
-        cherrypy.response.headers['Content-Type'] = "application/json"
-        return self.geologgercollection('lightlogs',username,tagname)
+        
+        out = self.geologgercollection('lightlogs',username,querytype,queryid)
+        if callback:
+            cherrypy.response.headers['Content-Type'] = "application/javascript"
+            return '%s(%s)'.encode('utf-8') % (str(callback),out)
+        else:
+            cherrypy.response.headers['Content-Type'] = "application/json"
+            return out
     @cherrypy.expose
-    def twilights(self,tagname=None):
+    def twilights(self,querytype,queryid=None,callback=None, **kwargs):
         user_id = cherrypy.request.login
         if user_id != 'guest':
             username = self.uidtoname(user_id)
         else:
             username = 'guest'
-        cherrypy.response.headers['Content-Type'] = "application/json"
-        return self.geologgercollection('twilights',username,tagname) 
+        out = self.geologgercollection('twilights',username,querytype,queryid)
+        if callback:
+            cherrypy.response.headers['Content-Type'] = "application/javascript"
+            return u'%s(%s)' % (str(callback),out)
+        else:
+            cherrypy.response.headers['Content-Type'] = "application/json"
+            return out
     @cherrypy.expose
-    def coord(self, tagname=None, task_id=None):
+    def coord(self, querytype, queryid=None,callback=None, **kwargs):
         user_id = cherrypy.request.login
         if user_id != 'guest':
             username = self.uidtoname(user_id)
         else:
             username = 'guest'
-        cherrypy.response.headers['Content-Type'] = "application/json"
-        return self.geologgercollection('coord',username, tagname)
+        out = self.geologgercollection('coord',username,querytype,queryid)
+        if callback:
+            cherrypy.response.headers['Content-Type'] = "application/javascript"
+            return u'%s(%s)' % (str(callback),out)
+        else:
+            cherrypy.response.headers['Content-Type'] = "application/json"
+            return out
+    
+
 
 cherrypy.tree.mount(Root())
 application = cherrypy.tree
