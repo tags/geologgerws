@@ -134,7 +134,7 @@ class Root(object):
             username = self.uidtoname(user_id)
         else:
             username = 'guest'
-        out = self.geologgercollection('twilights',username,querytype,queryid)
+        out = self.geologgercollection('twilights',username,querytype,queryid, **kwargs)
         if callback:
             cherrypy.response.headers['Content-Type'] = "application/javascript"
             return u'%s(%s)' % (str(callback),out)
@@ -148,7 +148,7 @@ class Root(object):
             username = self.uidtoname(user_id)
         else:
             username = 'guest'
-        out = self.geologgercollection('coord',username,querytype,queryid)
+        out = self.geologgercollection('coord',username,querytype,queryid, **kwargs)
         if callback:
             cherrypy.response.headers['Content-Type'] = "application/javascript"
             return u'%s(%s)' % (str(callback),out)
